@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8 Queens Challenge</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            font-family: 'Orbitron', sans-serif;
+        }
+        .chess-board {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+        .cell {
+            transition: all 0.3s ease-in-out;
+            background-color: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+        .cell:hover {
+            transform: scale(1.05) rotateX(10deg);
+            background-color: rgba(255,255,255,0.2);
+            box-shadow: 0 0 15px rgba(0,255,255,0.5);
+        }
+        .queen {
+            color: #48bb78;
+            text-shadow: 0 0 10px #48bb78;
+            font-size: 2rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        .attacked {
+            background-color: rgba(255,0,0,0.3);
+        }
+        #game-container {
+            backdrop-filter: blur(10px);
+            background-color: rgba(45,55,72,0.7);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center text-white p-4">
+    <div id="game-container" class="rounded-xl p-8 shadow-2xl w-full max-w-4xl">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-4xl font-bold text-white tracking-wider">8 Queens Challenge</h1>
+            <div class="flex space-x-4">
+                <button id="reset-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition">
+                    Reset Game
+                </button>
+                <div id="queens-counter" class="bg-blue-500 text-white px-4 py-2 rounded">
+                    Queens: <span id="queens-count">0</span>/8
+                </div>
+            </div>
+        </div>
+
+        <div class="chess-board grid grid-cols-8 gap-1 mb-6">
+        </div>
+
+        <div id="message" class="text-center text-xl font-bold h-10 text-green-400">
+            Place your first queen!
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const N = 8;
+            let board = Array(N).fill().map(() => Array(N).fill(null));
+            let queensPlaced = 0;
+
+            function generateBoard() {
+                const boardElement = $('.chess-board');
+                boardElement.empty();
+                for (let row = 0; row < N; row++) {
+                    for (let col = 0; col < N; col++) {
+                        boardElement.append(`
+                            <div class="cell w-16 h-16 flex items-center justify-center cursor-pointer" 
+                                 data-row="${row}" data-col="${col}">
+                            </div>
+                        `);
+                    }
+                }
+            }
+
+            generateBoard();
+
+            $('#reset-btn').click(function() {
+                $.ajax({
+                    url: '/reset',
+                    method: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            board = Array(N).fill().map(() => Array(N).fill(null));
+                            queensPlaced = 0;
+                            $('.cell').removeClass('queen attacked');
+                            $('.cell').text('');
+                            $('#queens-count').text(queensPlaced);
+                            $('#message').text('Game reset! Place your first queen.').removeClass('text-red-500 text-green-500');
+                        }
+                    }
+                });
+            });
+
+            $('.cell').click(function() {
+                const row = $(this).data('row');
+                const col = $(this).data('col');
+
+                $.ajax({
+                    url: '/place_queen',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ row, col }),
+                    success: function(response) {
+                        if (response.success) {
+                            board[row][col] = 'Q';
+                            $(`.cell[data-row="${row}"][data-col="${col}"]`)
+                                .addClass('queen')
+                                .text('♛');
+                            
+                            queensPlaced = response.queens_placed;
+                            $('#queens-count').text(queensPlaced);
+                            $('#message').text(response.message).addClass('text-green-500');
+                            highlightAttackedCells();
+                        } else {
+                            $('#message').text(response.message).addClass('text-red-500');
+                        }
+                    }
+                });
+            });
+
+            function removeQueen(row, col) {
+                $.ajax({
+                    url: '/remove_queen',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ row, col }),
+                    success: function(response) {
+                        if (response.success) {
+                            board[row][col] = null;
+                            $(`.cell[data-row="${row}"][data-col="${col}"]`)
+                                .removeClass('queen')
+                                .text('');
+                            
+                            queensPlaced = response.queens_placed;
+                            $('#queens-count').text(queensPlaced);
+                            $('#message').text(response.message).addClass('text-yellow-500');
+                            $('.cell').removeClass('attacked');
+                            highlightAttackedCells();
+                        } else {
+                            $('#message').text(response.message).addClass('text-red-500');
+                        }
+                    }
+                });
+            }
+
+            $('.cell').on('dblclick', function() {
+            const row = $(this).data('row');
+            const col = $(this).data('col');
+
+            $.ajax({
+            url: '/remove_queen',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ row, col }),
+            success: function(response) {
+            if (response.success) {
+                board[row][col] = null;
+                $(`.cell[data-row="${row}"][data-col="${col}"]`)
+                    .removeClass('queen')
+                    .text('');
+                
+                queensPlaced = response.queens_placed;
+                $('#queens-count').text(queensPlaced);
+                $('#message').text(response.message).addClass('text-yellow-500');
+
+                $('.cell').removeClass('attacked');
+                highlightAttackedCells();
+            } else {
+                $('#message').text(response.message).addClass('text-red-500');
+            }
+        }
+    });
+});
+
+
+            function highlightAttackedCells() {
+                $('.cell').removeClass('attacked');
+                for (let row = 0; row < N; row++) {
+                    for (let col = 0; col < N; col++) {
+                        if (board[row][col] === 'Q') {
+                            for (let i = 0; i < N; i++) {
+                                if (i !== col) 
+                                    $(`.cell[data-row="${row}"][data-col="${i}"]`).addClass('attacked');
+                                if (i !== row) 
+                                    $(`.cell[data-row="${i}"][data-col="${col}"]`).addClass('attacked');
+                            }
+                            for (let i = 0; i < N; i++) {
+                                for (let j = 0; j < N; j++) {
+                                    if (Math.abs(row - i) === Math.abs(col - j) && (i !== row || j !== col)) {
+                                        $(`.cell[data-row="${i}"][data-col="${j}"]`).addClass('attacked');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            function checkWin() {
+                $.ajax({
+                    url: '/check_win',
+                    method: 'GET',
+                    success: function(response) {
+                        if (response.success) {
+                            $('#message').text(response.message).addClass('text-green-500');
+                        } else {
+                            $('#message').text(response.message);
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
