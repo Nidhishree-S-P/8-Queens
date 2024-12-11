@@ -1,11 +1,12 @@
-import pytest # type: ignore
-from app import QueensGame, app  
+from app import QueensGame, app
+
+import pytest  # type: ignore
 
 
-@pytest.fixture # type: ignore
-
+@pytest.fixture
 def game():
     return QueensGame()
+
 
 def client():
     with app.test_client() as client:
@@ -30,7 +31,6 @@ def test_place_queen(client):
 
 
 def test_move_queen(client):
-   
     client.post('/place_queen', json={'row': 0, 'col': 0})
     response = client.post('/move_queen', json={'old_row': 0, 'old_col': 0, 'new_row': 1, 'new_col': 1})
     assert response.status_code == 200
@@ -38,11 +38,9 @@ def test_move_queen(client):
     assert data['success'] is True
     assert data['message'] == 'Queen moved successfully!'
 
-ef test_remove_queen(client):
-    # Place a queen first
+
+def test_remove_queen(client):
     client.post('/place_queen', json={'row': 0, 'col': 0})
-    
-    # Remove it
     response = client.post('/remove_queen', json={'row': 0, 'col': 0})
     assert response.status_code == 200
     data = response.get_json()
@@ -52,7 +50,6 @@ ef test_remove_queen(client):
 
 
 def test_invalid_move(client):
-    # Try to move a queen without placing one first
     response = client.post('/move_queen', json={'old_row': 0, 'old_col': 0, 'new_row': 1, 'new_col': 1})
     assert response.status_code == 200
     data = response.get_json()
@@ -60,12 +57,18 @@ def test_invalid_move(client):
     assert data['message'] == 'No queen at the original position.'
 
 
-def test_is_safe_position(self):
-    self.assertTrue(game.is_safe_position(0, 0))  
-    self.assertTrue(game.is_safe_position(7, 7))  
-    game.board[1][1] = 'Q'  
-    self.assertFalse(game.is_safe_position(0, 0)) 
-    self.assertFalse(game.is_safe_position(0, 2))  
-    self.assertFalse(game.is_safe_position(2, 0))  
-    self.assertFalse(game.is_safe_position(2, 2)) 
-    self.assertFalse(game.is_safe_position(2, 3))  
+def test_is_safe_position(game):
+    assert game.is_safe_position(0, 0)
+    assert game.is_safe_position(7, 7)
+    game.board[1][1] = 'Q'
+    assert not game.is_safe_position(0, 0)
+    assert not game.is_safe_position(0, 2)
+    assert not game.is_safe_position(2, 0)
+    assert not game.is_safe_position(2, 2)
+    game.reset_board()
+
+
+if __name__ == "__main__":
+    pytest.main()
+
+
