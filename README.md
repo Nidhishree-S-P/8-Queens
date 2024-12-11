@@ -22,9 +22,9 @@ JavaScript
 
 Installation Instructions:
 
-Clone the repository: git clone [YOUR_GITHUB_LINK]
+Clone the repository: git clone git@github.com:Nidhishree-S-P/8-Queens.git
 
-Navigate to the project directory: cd [PROJECT_DIRECTORY]
+Navigate to the project directory: cd 8-Queens
 
 Install the required packages: pip install flask
 
